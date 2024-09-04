@@ -107,76 +107,27 @@ Multipass is used to manage Ubuntu virtual machines easily.
 
   - Make a note of each IP address. This will be needed.
 
-    Feel free to utilize the Multipass GUI that comes with Multipass. Simply go in your applications and select Multipass to launch the GUI.
+    Feel free to utilize the Multipass GUI that comes with Multipass. Simply go in applications and select Multipass to launch the GUI.
 
     ![multipass-gui](/multipass_dashboard.png)
 
-## Step 2: Install SPO Toolkit
+## Step 2: Install SPO Toolkit on Ubuntu instances
 
 The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) toolkit simplifies Cardano node setup and common SPO tasks.
 
 1. **Run setup and deployment script on multiple instances:**
 
-  - Open a new shell and invoke this setup script:
-   ```shell
-    #!/bin/bash
-
-    # Array of instance names
-    instances=("cn1" "cn2")
-
-    # Loop through each instance
-    for instance in "${instances[@]}"; do
-        echo "🚀 Running commands on $instance..."
-
-        # Execute commands inside the instance
-        multipass exec "$instance" -- bash -c '
-          # Update and upgrade system packages
-          sudo apt update -y && sudo apt upgrade -y
-
-          # Create or change to tmp directory
-          mkdir -p "$HOME/tmp" && cd "$HOME/tmp"
-
-          # Install curl
-          sudo apt -y install curl
-
-          # Download and set permissions for guild-deploy script
-          curl -sS -o guild-deploy.sh https://raw.githubusercontent.com/cardano-community/guild-operators/master/scripts/cnode-helper-scripts/guild-deploy.sh
-          chmod 755 guild-deploy.sh
-
-          # Run guild-deploy script with specific parameters
-          ./guild-deploy.sh -b master -n preview -t cnode -s pdlcowx
-
-          # Source bashrc for environment variables
-          . "${HOME}/.bashrc"
-
-          # Clone or update cardano-node repository
-          cd ~/git || mkdir -p ~/git && cd ~/git
-          git clone https://github.com/intersectmbo/cardano-node || (cd cardano-node && git fetch --tags --recurse-submodules --all && git pull)
-
-          # Change to cardano-node directory
-          cd cardano-node
-
-          # Checkout the latest release tag
-          git checkout $(curl -sLf https://api.github.com/repos/intersectmbo/cardano-node/releases/latest | jq -r .tag_name)
-
-          # Build all components
-          $CNODE_HOME/scripts/cabal-build-all.sh
-        '
-
-        echo "🎉 Finished running commands on $instance."
-    done
+  - Open a new shell and run this initial setup script:
+    ```shell
+    curl -o- https://raw.githubusercontent.com/stevanlohja/cardano-spo-multipass/main/scripts/initial_provision.sh | bash
     ```
-     This script may take a few minutes ⌛ to complete as it provisions both instances. If you have more instances, then simply add them to the instance array.
+    This script may take a few minutes ⌛ to complete as it provisions both instances.
+
+
 
 ## Strategic Node Configuration: From Relay to Block Producer
 
-:::important
-
-`cn1` will be designated as the Relay node. `cn2` will initially be set up as a Relay node but will later be converted into a BP node. This setup involves configuring both `cn1` and `cn2` initially as Relay nodes, followed by a transition where `cn2` assumes the role of a BP node.
-
-:::
-
-Starting `cn2` as a Relay node simplifies network integration and peer connection, streamlining the transition to a BP node.
+`cn1` will be designated as the Relay node. `cn2` will initially be set up as a Relay node but will later be converted into a BP node. This setup involves configuring both `cn1` and `cn2` initially as Relay nodes, followed by a transition where `cn2` assumes the role of a BP node. Starting `cn2` as a Relay node simplifies network integration and peer connection, streamlining the transition to a BP node.
 
 ## Step 3: Configure `cn1` instance:
 
