@@ -2,13 +2,23 @@
 
 ## Setting Up a Cardano SPO on Preview Testnet
 
-This guide provides a detailed walkthrough for setting up a Cardano Stake Pool Operator (SPO) on the Preview testnet. It's designed for educational purposes and should not be used for production or mainnet environments.
+This guide provides a detailed walkthrough for setting up a Cardano Stake Pool Operator (SPO) on Cardano. In a mainnet enviornment you will use dedicated bare metals servers or a cloud provider. However, this tutorial we simulate Ubuntu instances locally using Multipass.
 
-This tutorial utilizes Multipass which is an ideal tool for localization of Ubuntu instances and best suited for testing and development.
+Cardano mainnets and testnets different system requirements since mainnet is much larger of a blockchain. For latest system requirements see the official https://developers.cardano.org/docs/operate-a-stake-pool/hardware-requirements/.
 
-## Cardano Node System Requirements
+This tutorial will be applied to the Cardano `Preview` testnet. Please target this Cardano environment.
 
-Before starting, ensure your local workstation or server meets these minimum requirements:
+## Tutorial requirements
+
+|  | |  |
+|-----------------------------------|-------------|--------------|
+| **CPU**                          | Minimum 4 cores, Quad-core or better recommended | 
+| **RAM**                          | 8 GB or more recommended | 
+| **Storage**                      | SSD recommended, 40 GB of free storage | 
+
+The tutorial requirements accounts for 2 Cardano nodes instances for `Preview` testnet.
+
+### General Cardano node requirements
 
 | **Requirement**                  | **Mainnet** | **Testnets** |
 |-----------------------------------|-------------|--------------|
@@ -21,7 +31,6 @@ This tutorial assumes you are using a Linux or Windows system with an AMD or Int
 
 ## Minimum viable SPO architecture
 
-
 A Cardano SPO requires a minimum of 2 Cardano nodes:
 
 1. **Cardano Relay Node:** A Cardano Relay Node propagates transactions and blocks across the network, enhancing connectivity and reliability for stake pools.
@@ -30,16 +39,18 @@ A Cardano SPO requires a minimum of 2 Cardano nodes:
 
 ```mermaid
 graph TD
-    A[Cardano Block Producer] --> B[Cardano Relay]
-    B --> C[Cardano Network]
-    style C fill:none,stroke-dasharray: 5,5
+    A[Stake Pool] --> B[BP Node]
+    C[Relay Node] --> D[Cardano Network]
+    B --> C
+    style A fill:none,stroke-dasharray: 5,5
+    style D fill:none,stroke-dasharray: 5,5
 ```
 
-More relay nodes are recommended for stake pool operation to increase network resilience, ensure better block propagation, and minimize the risk of downtime or connectivity issues that could affect block production. Thereofore, multiple relay nodes are strongly recommended for production and mainnet environments. However, this tutorial is targeting the Preview testnet and will use 1 BP node and 1 relay node.
+More relay nodes are recommended for stake pool operation to increase network resilience, ensure better block propagation, and minimize the risk of downtime or connectivity issues that could affect block production. This tutorial is for testing on `Preview` testnet and will use the minimum required instances of Cardano node (1 BP node and 1 Relay node).
 
 ## Step 1: Create Ubuntu instances using Multipass
 
-Multipass is used to manage Ubuntu virtual machines (VMs) easily.
+Multipass is used to manage Ubuntu virtual machines easily.
 
 1. **Download and Install Multipass:**
    - Visit the official [Multipass](https://multipass.run/install) website and download the appropriate version for your operating system.
@@ -59,14 +70,14 @@ Multipass is used to manage Ubuntu virtual machines (VMs) easily.
     -  Launch 2 Ubuntu instances following recommended system requirements.
 
    ```shell
-    # Launching the first instance named cn1
+    # Launching the first instance
     multipass launch \
         -n cn1 \                  # Name of the instance: cn1
         -c 2 \                    # Number of CPU cores: 2
         -m 4GB \                  # Memory allocation: 4GB
         -d 20GB                   # Disk space allocation: 20GB
 
-    # Launching the second instance named cn2
+    # Launching the second instance
     multipass launch \
         -n cn2 \                  # Name of the instance: cn2
         -c 2 \                    # Number of CPU cores: 2
@@ -74,7 +85,7 @@ Multipass is used to manage Ubuntu virtual machines (VMs) easily.
         -d 20GB                   # Disk space allocation: 20GB
    ```
 
-   This creates two Ubuntu instances named `cn1` and `cn2`. In other words, "cardano-node-1" and "cardano-node-2".
+   This creates two Ubuntu instances named `cn1` and `cn2`. In other words, "cardano-node-1" and "cardano-node-2". Feel free to allocate more hardware resources if available.
 
 4. **List Ubuntu instances and obtain IP addresses:**
 
@@ -100,14 +111,13 @@ Multipass is used to manage Ubuntu virtual machines (VMs) easily.
 
     ![multipass-gui](/multipass_dashboard.png)
 
-
 ## Step 2: Install SPO Toolkit
 
 The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) toolkit simplifies Cardano node setup and common SPO tasks.
 
 1. **Run setup and deployment script on multiple instances:**
 
-    Open a new shell and invoke this setup script:
+  - Open a new shell and invoke this setup script:
    ```shell
     #!/bin/bash
 
@@ -156,7 +166,7 @@ The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) t
         echo "🎉 Finished running commands on $instance."
     done
     ```
-     This script may take a few minutes ⌛ to complete as it provisions both instances.
+     This script may take a few minutes ⌛ to complete as it provisions both instances. If you have more instances, then simply add them to the instance array.
 
 ## Strategic Node Configuration: From Relay to Block Producer
 
