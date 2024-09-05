@@ -488,38 +488,58 @@ Allow both `cn1` and `cn2` to sync to 100%. This can be tracked with the `gLiveV
 
 ## Step 5: Convert `cn2` into a BP node
 
+1. **Stop `cn2` Relay node:**
+    - Using Multipass enter the `cn2` instance and stop the node:
+    ```shell
+    multipass shell cn2 
+    sudo systemctl stop cnode.service # stop the service
+    sudo systemctl status cnode.service # verify service stopped
+    ```
 
-
-
-<!-- 2. **Modify block producer node config file:**
+2. **Modify node config file:**
 
     - Open `$CNODE_HOME/files/config.json` in an editor.
     - Edit `"PeerSharing"` and `"EnableP2P"` to be `false`.
 
-3. **Modify block producer node topology file:**
+3. **Modify node topology file:**
 
-```json
-{
-  "bootstrapPeers": [],
-  "localRoots": [
+    The BP node will only peer with the Relay node and not the public network. Therefore, the default topology file has to reflect the Relay node (`cn1`) as the only `"accessPoints"` under `"localRoots"`
+
+    - Open `$CNODE_HOME/files/topology.json` in an editor.
+    - Delete the contents of the file and simply copy and paste the example `topology.json` contents below. However, ensure you replace the IP address with your Relay node IP address (Instance `cn1`).
+
+    ```json
     {
-      "accessPoints": [
+      "bootstrapPeers": [],
+      "localRoots": [
         {
-          "address": "10.190.51.250",
-          "port": 6000,
-          "description": "cn2"
+          "accessPoints": [
+            {
+              "address": "10.190.51.250",
+              "port": 6000,
+              "description": "cn1"
+            }
+          ],
+          "advertise": false,
+          "trustable": true,
+          "hotValency": 1
         }
       ],
-      "advertise": false,
-      "trustable": true,
-      "hotValency": 1
+      "publicRoots": [
+        {
+          "accessPoints": [],
+          "advertise": false
+        }
+      ],
+      "useLedgerAfterSlot": -1
     }
-  ],
-  "publicRoots": [
-    {
-      "accessPoints": [],
-      "advertise": false
-    }
-  ],
-  "useLedgerAfterSlot": -1
-} -->
+    ```
+
+4. **Test start the BP node interactively in the shell:**
+
+    Test start the node interactively in shell.
+
+    ```shell
+    cd "${CNODE_HOME}"/scripts
+    ./cnode.sh
+    ```
