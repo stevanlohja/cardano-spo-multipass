@@ -70,23 +70,22 @@ Multipass is used to manage Ubuntu virtual machines easily.
     -  Launch 2 Ubuntu instances following recommended system requirements.
 
    ```shell
-    # Launching the first instance
-    multipass launch \
-        -n cn1 \                  # Name of the instance: cn1
-        -c 2 \                    # Number of CPU cores: 2
-        -m 4GB \                  # Memory allocation: 4GB
-        -d 20GB                   # Disk space allocation: 20GB
+    multipass launch -n cn1 -c 2 -m 4GB -d 20GB
+    multipass launch -n cn2 -c 2 -m 4GB -d 20GB
+   ```
 
-    # Launching the second instance
+   This creates two Ubuntu instances named `cn1` and `cn2`. In other words, "cardano-node-1" and "cardano-node-2". Feel free to allocate more hardware resources if available.
+
+   Understanding the `multipass launch` parameters 
+
+   ```shell
+   # Launching the instance
     multipass launch \
         -n cn2 \                  # Name of the instance: cn2
         -c 2 \                    # Number of CPU cores: 2
         -m 4GB \                  # Memory allocation: 4GB
         -d 20GB                   # Disk space allocation: 20GB
-   ```
-
-   This creates two Ubuntu instances named `cn1` and `cn2`. In other words, "cardano-node-1" and "cardano-node-2". Feel free to allocate more hardware resources if available.
-
+    ```
 4. **List Ubuntu instances and obtain IP addresses:**
 
   - List the Ubuntu instances that were created:
@@ -123,7 +122,75 @@ The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) t
     ```
     This script may take a few minutes ⌛ to complete as it provisions both instances.
 
+### Optional: Mac/ ARM architecture workaround
 
+If you're on device with Mac/ ARM architecture, then you may encounter an error when installation Cardano node that reads:
+
+```
+ERROR:   The build archives are not available for ARM, you might need to build them!
+```
+
+The setup script intended to place the binary release of Cardano node in `$HOME/.local/bin/`.
+
+Official pre-built binaries for ARM-Linux architecture is not well supported. Therefore you will have to build Cardano node from source, or find a community maintained ARM-Linux release such as https://github.com/armada-alliance/cardano-node-binaries/.
+
+- **Download and Install Cardano Node (for ARM architecture):**
+  - Run this script to install the desired Cardano node in each instance:
+
+    ```shell
+    #!/bin/bash
+
+    instances=("cn1" "cn2")
+
+    for instance in "${instances[@]}"; do
+        echo "🚀 Running commands on $instance..."
+
+        multipass exec "$instance" -- bash -c '
+            ARCHIVE_URL="https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/9_1_0.tar.zst?raw=true"
+            DEST_DIR="$HOME/.local/bin"
+            mkdir -p "$DEST_DIR"
+            echo "Downloading archive..."
+            curl -L "$ARCHIVE_URL" -o 9_1_0.tar.zst
+            if [ $? -ne 0 ]; then
+                echo "Failed to download the archive."
+                exit 1
+            fi
+            if ! command -v zstd &> /dev/null; then
+                sudo apt-get update -y
+                sudo apt-get install -y zstd
+            fi
+            echo "Extracting archive..."
+            zstd -d -c 9_1_0.tar.zst | tar -x -C "$DEST_DIR" --strip-components=1
+            if [ $? -ne 0 ]; then
+                echo "Failed to extract the archive."
+                exit 1
+            fi
+            rm 9_1_0.tar.zst
+            echo "Archive downloaded and extracted successfully to $DEST_DIR"
+        '
+
+        echo "🎉 Finished running commands on $instance."
+    done 
+    ```
+
+- **Verify Cardano Node Installation:**
+  - Enter the instance and invoke `cardano-node` to check it's installed:
+    ```shell
+    multipass shell cn1 # enter instance
+    cardano-node --version # invoke cardano-node and check version
+    which cardano-node # verify binary location
+    ```
+
+    Example output:
+
+    ```shell
+    $ cardano-node --version
+    cardano-node 9.1.0 - linux-aarch64 - ghc-9.6
+    $ which cardano-node
+    /home/ubuntu/.local/bin/cardano-node
+    ```
+
+  - Repeat to verify installation in each instance.
 
 ## Strategic Node Configuration: From Relay to Block Producer
 
@@ -318,10 +385,17 @@ The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) t
     ```
     </details>
 
+5. **Test start the relay node interactively in shell:**
+    
+    Topology and config files mistakes can interrupt the node from starting properly. So, it's a good idea to test start nodes after modifying node files.
+
+    - Repeat Step **3.1** and **3.2** to test start the node and monitor it to ensure it's syncing.
+
 6. **Setup node to run as service:**
 
     Instead of manually starting the node, configure it as a systemd service for automatic startup. The toolkit includes a script to make this easier:
 
+    - Stop any running node processes.
     - Invoke the systemd setup scripts:
 
     ```shell
@@ -344,7 +418,7 @@ The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) t
     sudo systemctl start cnode-submit-api.service
     ```
     
-    Check `status` and replace status with `stop`/`start`/`restart` depending on what action to take.
+    - Check `status` and replace status with `stop`/`start`/`restart` depending on what action to take.
 
     ```shell
     sudo systemctl status cnode.service
@@ -358,7 +432,7 @@ The [SPO Guild Operator](https://cardano-community.github.io/guild-operators/) t
     ./gLiveView.sh
     ```
 
-## Step 4: Configure `cn2` instance.
+## Step 4: Start `cn2` as a Relay node.
 
 As mentioned earlier, `cn2` will initially run as a Relay node, then be converted into a BP node.
 
@@ -394,7 +468,7 @@ As mentioned earlier, `cn2` will initially run as a Relay node, then be converte
     sudo systemctl start cnode-submit-api.service
     ```
     
-    Check `status` and replace status with `stop`/`start`/`restart` depending on what action to take.
+    - Check `status` and replace status with `stop`/`start`/`restart` depending on what action to take.
 
     ```shell
     sudo systemctl status cnode.service
@@ -411,12 +485,6 @@ As mentioned earlier, `cn2` will initially run as a Relay node, then be converte
 ## Allow both `cn1` and `cn2` to sync to 100%.
 
 Allow both `cn1` and `cn2` to sync to 100%. This can be tracked with the `gLiveView` utility and can take up to a couple hours.
-
-:::tip
-
-Cardano node performs faster if you allocate more than the minimum required system resources (Ex: More CPU, more Memory, faster SSD, etc...)
-
-:::
 
 ## Step 5: Convert `cn2` into a BP node
 
